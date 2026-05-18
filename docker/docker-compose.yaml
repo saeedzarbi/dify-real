@@ -139,8 +139,6 @@ services:
   api_websocket:
     <<: *shared-api-worker-config
     image: langgenius/dify-api:1.14.1
-    profiles:
-      - collaboration
     environment:
       MODE: api
       SERVER_WORKER_AMOUNT: 1
@@ -256,8 +254,6 @@ services:
   # The PostgreSQL database.
   db_postgres:
     image: postgres:15-alpine
-    profiles:
-      - postgresql
     restart: always
     environment:
       POSTGRES_USER: ${DB_USERNAME:-postgres}
@@ -415,14 +411,12 @@ services:
       - api
       - web
     ports:
-      - "${EXPOSE_NGINX_PORT:-80}:${NGINX_PORT:-80}"
-      - "${EXPOSE_NGINX_SSL_PORT:-443}:${NGINX_SSL_PORT:-443}"
+      - "${EXPOSE_NGINX_PORT:-6480}:${NGINX_PORT:-6480}"
+      - "${EXPOSE_NGINX_SSL_PORT:-6443}:${NGINX_SSL_PORT:-6443}"
 
   # The Weaviate vector store.
   weaviate:
     image: semitechnologies/weaviate:1.27.0
-    profiles:
-      - weaviate
     restart: always
     volumes:
       - ./volumes/weaviate:/var/lib/weaviate
