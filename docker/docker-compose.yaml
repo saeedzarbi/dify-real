@@ -102,6 +102,7 @@ services:
     restart: "no"
 
   # API service
+  # API service
   api:
     <<: *shared-api-worker-config
     image: langgenius/dify-api:1.14.1
@@ -115,6 +116,8 @@ services:
       PLUGIN_MAX_PACKAGE_SIZE: ${PLUGIN_MAX_PACKAGE_SIZE:-52428800}
       PLUGIN_DAEMON_TIMEOUT: ${PLUGIN_DAEMON_TIMEOUT:-600.0}
       INNER_API_KEY_FOR_PLUGIN: ${PLUGIN_DIFY_INNER_API_KEY:-QaHbTe77CtuXmsfyhR7+vRjI/+XbV1AaFy691iy+kGDv2Jvy0/eAh8Y1}
+      PLUGIN_DAEMON_URL: http://plugin_daemon:5002
+      PLUGIN_DAEMON_KEY: ${PLUGIN_SERVER_KEY:-joQ2mr1A5G1W8t4Z}
     depends_on:
       init_permissions:
         condition: service_completed_successfully
@@ -155,8 +158,6 @@ services:
       - ssrf_proxy_network
       - default
 
-  # worker service
-  # The Celery worker for processing all queues (dataset, workflow, mail, etc.)
   worker:
     <<: *shared-worker-config
     image: langgenius/dify-api:1.14.1
@@ -167,6 +168,8 @@ services:
       SENTRY_PROFILES_SAMPLE_RATE: ${API_SENTRY_PROFILES_SAMPLE_RATE:-1.0}
       PLUGIN_MAX_PACKAGE_SIZE: ${PLUGIN_MAX_PACKAGE_SIZE:-52428800}
       INNER_API_KEY_FOR_PLUGIN: ${PLUGIN_DIFY_INNER_API_KEY:-QaHbTe77CtuXmsfyhR7+vRjI/+XbV1AaFy691iy+kGDv2Jvy0/eAh8Y1}
+      PLUGIN_DAEMON_URL: http://plugin_daemon:5002
+      PLUGIN_DAEMON_KEY: ${PLUGIN_SERVER_KEY:-joQ2mr1A5G1W8t4Z}
     depends_on:
       init_permissions:
         condition: service_completed_successfully
@@ -435,6 +438,39 @@ services:
       ENABLE_TOKENIZER_GSE: ${WEAVIATE_ENABLE_TOKENIZER_GSE:-false}
       ENABLE_TOKENIZER_KAGOME_JA: ${WEAVIATE_ENABLE_TOKENIZER_KAGOME_JA:-false}
       ENABLE_TOKENIZER_KAGOME_KR: ${WEAVIATE_ENABLE_TOKENIZER_KAGOME_KR:-false}
+      
+  plugin_daemon:
+    image: langgenius/dify-plugin-daemon:main-local
+    restart: always
+    environment:
+      - SERVER_PORT=5002
+      - SERVER_KEY=${PLUGIN_SERVER_KEY:-joQ2mr1A5G1W8t4Z}
+      - DIFY_INNER_API_URL=http://api:5001
+      - DIFY_INNER_API_KEY=${PLUGIN_DIFY_INNER_API_KEY:-QaHbTe77CtuXmsfyhR7+vRjI/+XbV1AaFy691iy+kGDv2Jvy0/eAh8Y1}
+      - DB_HOST=db_postgres
+      - DB_PORT=5432
+      - DB_USERNAME=${DB_USERNAME:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-difyai123456}
+      - DB_DATABASE=${DB_DATABASE:-dify}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-difyai123456}
+      - MAX_WORKERS=${PLUGIN_MAX_WORKERS:-2}
+      - MAX_REQUESTS=${PLUGIN_MAX_REQUESTS:-1000}
+      - MAX_PACKAGE_SIZE=${PLUGIN_MAX_PACKAGE_SIZE:-52428800}
+      - PLUGIN_WORKING_PATH=/app/storage/plugins
+      - PLUGIN_REMOTE_INSTALLING_HOST=plugin_daemon
+      - PLUGIN_REMOTE_INSTALLING_PORT=5003
+    volumes:
+      - ./volumes/app/storage:/app/storage
+    depends_on:
+      db_postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - ssrf_proxy_network
+      - default
 
 networks:
   ssrf_proxy_network:
